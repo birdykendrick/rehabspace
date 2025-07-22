@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "500210534719",
+    "project_id": "rehabspace-c9289",
+    "storage_bucket": "rehabspace-c9289.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:500210534719:android:68c330a40229c258556b8a",
+        "android_client_info": {
+          "package_name": "com.example.rehabspace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCU70ftVml1yldI7xJmlzuQoo0Q3D77ENM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
