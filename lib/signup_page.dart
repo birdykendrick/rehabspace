@@ -49,8 +49,7 @@ class _SignUpPageState extends State<SignUpPage> {
             .doc(user.uid)
             .set({
               'email': user.email,
-              'password':
-                  _passwordController.text.trim(), // ⚠️ For learning only
+              'password': _passwordController.text.trim(),
               'createdAt': Timestamp.now(),
             });
 

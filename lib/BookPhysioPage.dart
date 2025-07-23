@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
-class BookPhysioPage extends StatefulWidget{
+class BookPhysioPage extends StatefulWidget {
   const BookPhysioPage({super.key});
 
   @override
   State<BookPhysioPage> createState() => _BookPhysioPageState();
 }
-class _BookPhysioPageState extends State<BookPhysioPage>{
+
+class _BookPhysioPageState extends State<BookPhysioPage> {
   final TextEditingController _remarksController = TextEditingController();
   DateTime? _selectedDate;
   String? _selectedTime;
@@ -22,14 +22,14 @@ class _BookPhysioPageState extends State<BookPhysioPage>{
     '3:00pm',
     '4:30pm',
   ];
-  final List<String> therapists =[
+  final List<String> therapists = [
     'Dr. Jennifer Smith',
     'Dr. Kendrick Khoo',
     'Dr. Lily Ong',
   ];
-  
+
   void _submitBooking() async {
-    if( _selectedTherapist == null || _selectedTime == null){
+    if (_selectedTherapist == null || _selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill in all required fields")),
       );
@@ -42,39 +42,40 @@ class _BookPhysioPageState extends State<BookPhysioPage>{
       'remarks': _remarksController.text.trim(),
       'createdAt': Timestamp.now(),
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Appointment Booked!")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Appointment Booked!")));
     Navigator.pop(context);
   }
+
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Book Physio"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
-        elevation:0,
+        elevation: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
-        child:ListView(
-          children:[const SizedBox(height:12),
-              const Text("Fill up this form to book an appointment",
+        child: ListView(
+          children: [
+            const SizedBox(height: 12),
+            const Text(
+              "Fill up this form to book an appointment",
               style: TextStyle(color: Colors.grey),
             ),
-            const SizedBox(height: 24 ),
+            const SizedBox(height: 24),
             DropdownButtonFormField<String>(
               value: _selectedTherapist,
               hint: const Text("Select Your Therapist"),
-              items: therapists.map((name){
-                return DropdownMenuItem(
-                  value: name,
-                  child:Text(name),
-                );
-              }).toList(),
+              items:
+                  therapists.map((name) {
+                    return DropdownMenuItem(value: name, child: Text(name));
+                  }).toList(),
               onChanged: (value) {
-                setState((){
+                setState(() {
                   _selectedTherapist = value;
                 });
               },
@@ -88,9 +89,10 @@ class _BookPhysioPageState extends State<BookPhysioPage>{
             TextFormField(
               readOnly: true,
               decoration: InputDecoration(
-                hintText: _selectedDate == null
-                  ? 'Select Date'
-                  : '${_selectedDate!.day} ${_selectedDate!.month}, ${_selectedDate!.year}',
+                hintText:
+                    _selectedDate == null
+                        ? 'Select Date'
+                        : '${_selectedDate!.day} ${_selectedDate!.month}, ${_selectedDate!.year}',
                 prefixIcon: const Icon(Icons.calendar_today_outlined),
                 border: const OutlineInputBorder(),
               ),
@@ -101,7 +103,7 @@ class _BookPhysioPageState extends State<BookPhysioPage>{
                   firstDate: DateTime.now(),
                   lastDate: DateTime(2030),
                 );
-                if(picked != null){
+                if (picked != null) {
                   setState(() {
                     _selectedDate = picked;
                   });
@@ -114,23 +116,24 @@ class _BookPhysioPageState extends State<BookPhysioPage>{
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: timeSlots.map((slot){
-                final isSelected = _selectedTime == slot;
-                return ChoiceChip(
-                  label:Text(slot),
-                  selected: isSelected,
-                  onSelected: (_){
-                    setState((){
-                      _selectedTime = slot;
-                    });
-                  },
-                  selectedColor: const Color(0xFF356899),
-                  backgroundColor: Colors.grey[200],
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white: Colors.black,
-                  ),
-                );
-              }).toList(),
+              children:
+                  timeSlots.map((slot) {
+                    final isSelected = _selectedTime == slot;
+                    return ChoiceChip(
+                      label: Text(slot),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(() {
+                          _selectedTime = slot;
+                        });
+                      },
+                      selectedColor: const Color(0xFF356899),
+                      backgroundColor: Colors.grey[200],
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black,
+                      ),
+                    );
+                  }).toList(),
             ),
             const SizedBox(height: 20),
 
@@ -148,18 +151,18 @@ class _BookPhysioPageState extends State<BookPhysioPage>{
 
             SizedBox(
               width: double.infinity,
-              height: 50, 
+              height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF356899),
+                  backgroundColor: const Color(0xFF356899),
+                ),
+                onPressed: _submitBooking,
+                child: const Text("Submit"),
               ),
-              onPressed: _submitBooking,
-              child: const Text("Submit"),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
