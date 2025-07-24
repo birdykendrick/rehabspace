@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// import 'loginpage.dart';
+import 'loginpage.dart';
 import 'homedash.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -25,7 +25,7 @@ class _SplashScreenState extends State<SplashScreen> {
     Future.delayed(const Duration(seconds: 1), () {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeDash()),
+        MaterialPageRoute(builder: (_) => const LoginPage()),
       );
     });
   }

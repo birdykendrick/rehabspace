@@ -1,15 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rehabspace/BookPhysioPage.dart';
 
-class HomeDash extends StatelessWidget {
+class HomeDash extends StatefulWidget {
   const HomeDash({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final User? user = FirebaseAuth.instance.currentUser;
-    final String userEmail = user?.email ?? "User";
+  State<HomeDash> createState() => _HomeDashState();
+}
 
+class _HomeDashState extends State<HomeDash> {
+  String? displayName;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDisplayName();
+  }
+
+  Future<void> _loadDisplayName() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('loginData')
+              .doc(uid)
+              .get();
+
+      if (doc.exists) {
+        setState(() {
+          displayName = doc['displayName'] ?? 'User';
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       bottomNavigationBar: BottomNavigationBar(
@@ -46,14 +76,16 @@ class HomeDash extends StatelessWidget {
                       style: TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      '$userEmail 👋',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Text(
+                          '$displayName 👋',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                   ],
                 ),
                 const CircleAvatar(

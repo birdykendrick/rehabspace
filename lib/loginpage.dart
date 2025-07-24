@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rehabspace/signup_page.dart';
-import 'package:rehabspace/homedash.dart'; // <-- Added
+import 'package:rehabspace/homedash.dart';
+import 'package:rehabspace/Profile.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -44,21 +44,38 @@ class _LoginPageState extends State<LoginPage> {
 
       if (user != null) {
         if (user.emailVerified) {
-          // ✅ Update Firestore emailVerified to true
           await FirebaseFirestore.instance
               .collection('loginData')
               .doc(user.uid)
               .update({'emailVerified': true});
 
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Login successful')));
+          final userDoc =
+              await FirebaseFirestore.instance
+                  .collection('loginData')
+                  .doc(user.uid)
+                  .get();
 
-          // ✅ Navigate to HomeDash
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeDash()),
-          );
+          final data = userDoc.data();
+
+          final hasDisplayName =
+              data != null &&
+              data['displayName'] != null &&
+              data['displayName'].toString().trim().isNotEmpty;
+
+          final hasDob = data != null && data['dob'] != null;
+
+          if (!hasDisplayName || !hasDob) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => ProfileCompletionDialog(uid: user!.uid),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeDash()),
+            );
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -148,51 +165,40 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         const SizedBox(height: 20),
-
-                        // Email Field
                         _buildInputField(
                           controller: _emailController,
                           hintText: 'Email',
                           icon: Icons.email_outlined,
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
+                            if (value == null || value.isEmpty)
                               return 'Please enter your email';
-                            }
                             if (!RegExp(
                               r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                            ).hasMatch(value)) {
-                              return 'Please enter a valid email';
-                            }
+                            ).hasMatch(value))
+                              return 'Invalid email';
                             return null;
                           },
                         ),
                         const SizedBox(height: 10),
-
-                        // Password Field
                         _buildInputField(
                           controller: _passwordController,
                           hintText: 'Password',
                           icon: Icons.lock_outline,
                           isPassword: true,
                           isVisible: _isPasswordVisible,
-                          toggleVisibility: () {
-                            setState(() {
-                              _isPasswordVisible = !_isPasswordVisible;
-                            });
-                          },
+                          toggleVisibility:
+                              () => setState(
+                                () => _isPasswordVisible = !_isPasswordVisible,
+                              ),
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
+                            if (value == null || value.isEmpty)
                               return 'Please enter your password';
-                            }
-                            if (value.length < 6) {
+                            if (value.length < 6)
                               return 'Password must be at least 6 characters';
-                            }
                             return null;
                           },
                         ),
                         const SizedBox(height: 20),
-
-                        // Login Button
                         SizedBox(
                           width: double.infinity,
                           height: 56,
@@ -220,7 +226,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         const SizedBox(height: 24),
-
                         Center(
                           child: TextButton(
                             onPressed: _navigateToSignUp,

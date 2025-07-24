@@ -15,17 +15,17 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
   String? _selectedTherapist;
 
   final List<String> timeSlots = [
-    '10:00am',
-    '11:00am',
-    '12:00pm',
-    '2:30pm',
-    '3:00pm',
-    '4:30pm',
+    '10am - 11am',
+    '11am - 12pm',
+    '1:30pm - 2:30pm',
+    '2:30pm - 3:30pm',
+    '3:30pm - 4:30pm',
+    '4:30pm - 6pm',
   ];
   final List<String> therapists = [
-    'Dr. Jennifer Smith',
+    'Dr. Lester Law',
     'Dr. Kendrick Khoo',
-    'Dr. Lily Ong',
+    'Dr. Chris',
   ];
 
   void _submitBooking() async {
@@ -35,10 +35,10 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
       );
       return;
     }
-    await FirebaseFirestore.instance.collection('physio_bookings').add({
+    await FirebaseFirestore.instance.collection('PhysioBookings').add({
       'therapist': _selectedTherapist,
-      'date': _selectedDate!.toIso8601String(),
-      'time': _selectedTime,
+      'date_selected': _selectedDate!.toIso8601String(),
+      'time_selected': _selectedTime,
       'remarks': _remarksController.text.trim(),
       'createdAt': Timestamp.now(),
     });
@@ -127,10 +127,13 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
                           _selectedTime = slot;
                         });
                       },
-                      selectedColor: const Color(0xFF356899),
+                      selectedColor: const Color.fromARGB(255, 67, 155, 238),
                       backgroundColor: Colors.grey[200],
                       labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black,
+                        color:
+                            isSelected
+                                ? Colors.white
+                                : const Color.fromARGB(255, 0, 0, 0),
                       ),
                     );
                   }).toList(),
@@ -154,7 +157,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
               height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF356899),
+                  backgroundColor: Colors.grey[200],
                 ),
                 onPressed: _submitBooking,
                 child: const Text("Submit"),
