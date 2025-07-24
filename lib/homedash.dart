@@ -58,7 +58,7 @@ class HomeDash extends StatelessWidget {
                 ),
                 const CircleAvatar(
                   radius: 24,
-                  backgroundImage: AssetImage("assets/img/Profile_photo.jpeg"),
+                  backgroundImage: AssetImage("assets/Profile_photo.jpg"),
                 ),
               ],
             ),
@@ -132,7 +132,7 @@ class HomeDash extends StatelessWidget {
                     children: [
                       const CircleAvatar(
                         backgroundImage: AssetImage(
-                          "assets/img/Doctor_picture.jpeg",
+                          "assets/Doctor_picture.jpg",
                         ),
                       ),
                       const SizedBox(width: 12),
