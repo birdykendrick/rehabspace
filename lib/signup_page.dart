@@ -33,7 +33,8 @@ class _SignUpPageState extends State<SignUpPage> {
     setState(() => _isLoading = true);
 
     try {
-      UserCredential userCredential = await FirebaseAuth.instance
+      UserCredential userCredential = await FirebaseAuth //.
+          .instance //.
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
@@ -42,9 +43,10 @@ class _SignUpPageState extends State<SignUpPage> {
       User? user = userCredential.user;
 
       if (user != null) {
-        await user.sendEmailVerification();
+        await user.sendEmailVerification(); //.
 
-        await FirebaseFirestore.instance
+        await FirebaseFirestore //S
+            .instance //.
             .collection('loginData')
             .doc(user.uid)
             .set({

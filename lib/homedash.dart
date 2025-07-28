@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rehabspace/BookPhysioPage.dart';
+import 'package:rehabspace/appointment.dart'; // ✅ correct import
 
 class HomeDash extends StatefulWidget {
   const HomeDash({super.key});
@@ -54,7 +55,6 @@ class _HomeDashState extends State<HomeDash> {
       ),
       body: ListView(
         children: [
-          // Header with Welcome
           Container(
             padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
             decoration: const BoxDecoration(
@@ -67,7 +67,6 @@ class _HomeDashState extends State<HomeDash> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Greeting
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -258,6 +257,21 @@ class _HomeDashState extends State<HomeDash> {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const BookPhysioPage()),
+          );
+        } else if (label == "AI Chatbot") {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('AI Chatbot is currently unavailable'),
+            ),
+          );
+        } else if (label == "Appointments") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) =>
+                      const AppointmentCalendar(appointments: []), // ✅ route
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(

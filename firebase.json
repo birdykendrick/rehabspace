@@ -1,1 +1,38 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"rehabspace-c9289","appId":"1:500210534719:android:68c330a40229c258556b8a","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"rehabspace-c9289","configurations":{"android":"1:500210534719:android:68c330a40229c258556b8a","web":"1:500210534719:web:79f96e35ac61b680556b8a"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "rehabspace-c9289",
+          "appId": "1:500210534719:android:68c330a40229c258556b8a",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "rehabspace-c9289",
+          "configurations": {
+            "android": "1:500210534719:android:68c330a40229c258556b8a",
+            "web": "1:500210534719:web:79f96e35ac61b680556b8a"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}
