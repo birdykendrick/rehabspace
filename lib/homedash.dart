@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rehabspace/BookPhysioPage.dart';
 import 'package:rehabspace/appointment.dart';
 import 'package:rehabspace/chat_page.dart';
+import 'package:rehabspace/map.dart';
 
 class HomeDash extends StatefulWidget {
   const HomeDash({super.key});
@@ -40,11 +41,38 @@ class _HomeDashState extends State<HomeDash> {
     }
   }
 
-  @override
+  int _selectedIndex = 1; // Default to Home
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        selectedItemColor: const Color.fromARGB(255, 9, 95, 255),
+        unselectedItemColor: Colors.grey,
+        onTap: (index) async {
+          if (index == 0) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MapScreen()),
+            );
+
+            // After returning from MapScreen, reset to Home
+            setState(() {
+              _selectedIndex = 1;
+            });
+          } else if (index == 1) {
+            setState(() {
+              _selectedIndex = 1;
+            });
+          } else if (index == 2) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Settings page not implemented')),
+            );
+            setState(() {
+              _selectedIndex = 2;
+            });
+          }
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.map), label: "Map"),
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),

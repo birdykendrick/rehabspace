@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
 
 class AppointmentCalendar extends StatefulWidget {
   const AppointmentCalendar({super.key});
@@ -22,9 +23,15 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
   }
 
   Future<void> fetchAppointmentsFromFirestore() async {
+    // final uid = FirebaseAuth.instance.currentUser?.uid;
+    // if (uid == null) return;
     try {
       final snapshot =
           await FirebaseFirestore.instance.collection('PhysioBookings').get();
+      //   final snapshot = await FirebaseFirestore.instance
+      // .collection('PhysioBookings')
+      // .where('userId', isEqualTo: uid) // 🔑 Only fetch current user's bookings
+      // .get();
 
       setState(() {
         allAppointments =
