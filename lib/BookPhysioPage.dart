@@ -22,29 +22,60 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
     '3:30pm - 4:30pm',
     '4:30pm - 6pm',
   ];
+
   final List<String> therapists = [
     'Dr. Lester Law',
     'Dr. Kendrick Khoo',
     'Dr. Chris',
   ];
 
+  List<String> _locations = [];
+  String? _selectedLocation;
+
+  // 🔹 Fetch locations from Firestore
+  Future<void> _fetchLocations() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('maplocations').get();
+
+    setState(() {
+      _locations =
+          snapshot.docs
+              .map((doc) => doc['name'] as String)
+              .where((name) => name.isNotEmpty)
+              .toList();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLocations(); // 🔹 Load locations when the page opens
+  }
+
   void _submitBooking() async {
-    if (_selectedTherapist == null || _selectedTime == null) {
+    if (_selectedTherapist == null ||
+        _selectedTime == null ||
+        _selectedLocation == null ||
+        _selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill in all required fields")),
       );
       return;
     }
+
     await FirebaseFirestore.instance.collection('PhysioBookings').add({
       'therapist': _selectedTherapist,
       'date_selected': _selectedDate!.toIso8601String(),
       'time_selected': _selectedTime,
+      'location': _selectedLocation, // 🔹 Save location to Firestore
       'remarks': _remarksController.text.trim(),
       'createdAt': Timestamp.now(),
     });
+
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text("Appointment Booked!")));
+
     Navigator.pop(context);
   }
 
@@ -67,6 +98,32 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 24),
+
+            // 🔹 Location dropdown
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              value: _selectedLocation,
+              decoration: const InputDecoration(
+                labelText: 'Select Clinic Location',
+                border: OutlineInputBorder(),
+              ),
+              items:
+                  _locations.map((location) {
+                    return DropdownMenuItem(
+                      value: location,
+                      child: Text(location),
+                    );
+                  }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedLocation = value;
+                });
+              },
+              validator:
+                  (value) => value == null ? 'Please select a location' : null,
+            ),
+            const SizedBox(height: 20),
+
             DropdownButtonFormField<String>(
               value: _selectedTherapist,
               hint: const Text("Select Your Therapist"),
@@ -110,7 +167,6 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
                 }
               },
             ),
-
             const SizedBox(height: 20),
 
             Wrap(
@@ -149,7 +205,6 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 30),
 
             SizedBox(

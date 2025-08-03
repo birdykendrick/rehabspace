@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class ClaudeService {
   final String _apiKey =
-      "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";
+      "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";
 
   Future<String> getRehabResponse(String userInput) async {
     final uri = Uri.parse("https://openrouter.ai/api/v1/chat/completions");

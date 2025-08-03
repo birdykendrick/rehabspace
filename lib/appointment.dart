@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 class AppointmentCalendar extends StatefulWidget {
-  final List<Map<String, dynamic>> appointments;
-
-  const AppointmentCalendar({super.key, required this.appointments});
+  const AppointmentCalendar({super.key});
 
   @override
   State<AppointmentCalendar> createState() => _AppointmentCalendarState();
@@ -11,10 +11,43 @@ class AppointmentCalendar extends StatefulWidget {
 
 class _AppointmentCalendarState extends State<AppointmentCalendar> {
   DateTime? selectedDate;
+  List<Map<String, dynamic>> allAppointments = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchAppointmentsFromFirestore();
+    selectedDate = DateTime.now();
+  }
+
+  Future<void> fetchAppointmentsFromFirestore() async {
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('PhysioBookings').get();
+
+      setState(() {
+        allAppointments =
+            snapshot.docs.map((doc) {
+              final data = doc.data();
+              return {
+                'date': DateTime.parse(data['date_selected']),
+                'therapist': data['therapist'],
+                'time': data['time_selected'],
+                'location': data['location'],
+              };
+            }).toList();
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching appointments: $e');
+      setState(() => isLoading = false);
+    }
+  }
 
   List<Map<String, dynamic>> get selectedAppointments {
     if (selectedDate == null) return [];
-    return widget.appointments.where((a) {
+    return allAppointments.where((a) {
       final date = a['date'] as DateTime;
       return date.year == selectedDate!.year &&
           date.month == selectedDate!.month &&
@@ -31,87 +64,139 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 16),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Select a Date",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-          CalendarDatePicker(
-            initialDate: DateTime.now(),
-            firstDate: DateTime(2000),
-            lastDate: DateTime(2100),
-            onDateChanged: (date) => setState(() => selectedDate = date),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Appointments",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-          if (selectedDate != null)
-            Expanded(
-              child:
-                  selectedAppointments.isEmpty
-                      ? const Center(
-                        child: Text("No appointments on this date."),
-                      )
-                      : ListView.builder(
-                        itemCount: selectedAppointments.length,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemBuilder: (context, index) {
-                          final appointment = selectedAppointments[index];
-                          return Container(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 4,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  const SizedBox(height: 16),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "Select a Date",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  TableCalendar(
+                    firstDay: DateTime(2000),
+                    lastDay: DateTime(2100),
+                    focusedDay: selectedDate!,
+                    selectedDayPredicate:
+                        (day) =>
+                            selectedDate != null &&
+                            day.year == selectedDate!.year &&
+                            day.month == selectedDate!.month &&
+                            day.day == selectedDate!.day,
+                    onDaySelected: (selected, _) {
+                      setState(() {
+                        selectedDate = selected;
+                      });
+                    },
+
+                    availableCalendarFormats: const {
+                      CalendarFormat.month: 'Month',
+                    },
+                    calendarFormat: CalendarFormat.month,
+                    calendarBuilders: CalendarBuilders(
+                      markerBuilder: (context, date, _) {
+                        final hasAppointments = allAppointments.any(
+                          (a) =>
+                              a['date'].year == date.year &&
+                              a['date'].month == date.month &&
+                              a['date'].day == date.day,
+                        );
+                        if (hasAppointments) {
+                          return Positioned(
+                            bottom: 1,
+                            child: Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.blue,
+                              ),
                             ),
-                            child: Row(
-                              children: [
-                                const CircleAvatar(
-                                  backgroundImage: AssetImage(
-                                    "assets/img/Doctor_picture.jpeg",
+                          );
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "Appointments",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child:
+                        selectedAppointments.isEmpty
+                            ? const Center(
+                              child: Text("No appointments on this date."),
+                            )
+                            : ListView.builder(
+                              itemCount: selectedAppointments.length,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              itemBuilder: (context, index) {
+                                final appointment = selectedAppointments[index];
+                                return Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 6,
                                   ),
-                                  radius: 24,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        appointment['doctor'] ??
-                                            'Unknown Doctor',
+                                        appointment['therapist'] ??
+                                            'Unknown Therapist',
                                         style: const TextStyle(
                                           fontSize: 16,
-                                          fontWeight: FontWeight.w500,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        appointment['time'],
+                                        appointment['time'] ?? 'No time',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        appointment['location'] ??
+                                            'No location',
                                         style: const TextStyle(
                                           fontSize: 14,
                                           color: Colors.grey,
@@ -119,15 +204,12 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
                                       ),
                                     ],
                                   ),
-                                ),
-                              ],
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
-            ),
-        ],
-      ),
+                  ),
+                ],
+              ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 1,
         selectedItemColor: const Color(0xFF356899),

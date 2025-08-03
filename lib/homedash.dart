@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rehabspace/BookPhysioPage.dart';
-import 'package:rehabspace/appointment.dart'; // ✅ correct import
+import 'package:rehabspace/appointment.dart';
 import 'package:rehabspace/chat_page.dart';
 
 class HomeDash extends StatefulWidget {
@@ -257,7 +257,7 @@ class _HomeDashState extends State<HomeDash> {
         if (label == "Book Physio") {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const BookPhysioPage()),
+            MaterialPageRoute(builder: (context) => BookPhysioPage()),
           );
         } else if (label == "AI Chatbot") {
           Navigator.push(
@@ -268,9 +268,7 @@ class _HomeDashState extends State<HomeDash> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder:
-                  (context) =>
-                      const AppointmentCalendar(appointments: []), // ✅ route
+              builder: (context) => const AppointmentCalendar(), // ✅ Fixed
             ),
           );
         } else {
