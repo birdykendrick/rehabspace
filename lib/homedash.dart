@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rehabspace/BookPhysioPage.dart';
 import 'package:rehabspace/appointment.dart'; // ✅ correct import
+import 'package:rehabspace/chat_page.dart';
 
 class HomeDash extends StatefulWidget {
   const HomeDash({super.key});
@@ -259,10 +260,9 @@ class _HomeDashState extends State<HomeDash> {
             MaterialPageRoute(builder: (context) => const BookPhysioPage()),
           );
         } else if (label == "AI Chatbot") {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('AI Chatbot is currently unavailable'),
-            ),
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatPage()),
           );
         } else if (label == "Appointments") {
           Navigator.push(
