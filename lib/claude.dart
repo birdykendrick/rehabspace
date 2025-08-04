@@ -16,13 +16,14 @@ class ClaudeService {
     };
 
     final body = jsonEncode({
+      // converts the request body into a JSON string that only API exepects RMB THIS
       "model": "mistralai/mistral-7b-instruct",
-      "max_tokens": 300,
+      "max_tokens": 200,
       "messages": [
         {
           "role": "system",
           "content":
-              "You are a helpful assistant that ONLY answers questions related to rehabilitation, physiotherapy, meals for injury, recovery exercises, injury healing, and wellness advice. Please be as concise as possible. If a user asks anything unrelated to rehab, kindly respond with: 'I only assist with rehab-related questions.'",
+              "You are a helpful assistant that only answers questions related to rehabilitation, physiotherapy, recovery exercises, injury healing, nutrition for recovery, and general wellness advice. Please keep your responses clear, simple, and concise. Limit answers to a few sentences. If the user asks something unrelated to rehabilitation, respond with: 'I only assist with rehab-related questions.'",
         },
         {"role": "user", "content": userInput},
       ],

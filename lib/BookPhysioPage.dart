@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rehabspace/homedash.dart';
+import 'package:rehabspace/map.dart';
+import 'package:rehabspace/profile_page.dart';
 
 class BookPhysioPage extends StatefulWidget {
   const BookPhysioPage({super.key});
@@ -44,6 +47,39 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
               .where((name) => name.isNotEmpty)
               .toList();
     });
+  }
+
+  int _selectedIndex = 1;
+
+  void _onTabTapped(int index) {
+    if (index == _selectedIndex) return;
+
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const MapScreen(),
+        ), // Replace with your actual map page
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HomeDash(),
+        ), // Replace with your home page
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const ProfilePage(),
+        ), // Optional: replace or stub
+      );
+    }
   }
 
   @override
@@ -220,6 +256,20 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 1, // Use 1 if Home is tab index 1
+        onTap: _onTabTapped,
+        selectedItemColor: const Color(0xFF356899),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: "Map"),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: "Settings",
+          ),
+        ],
       ),
     );
   }

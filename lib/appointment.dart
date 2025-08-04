@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rehabspace/homedash.dart';
+import 'package:rehabspace/map.dart';
+import 'package:rehabspace/profile_page.dart';
 import 'package:table_calendar/table_calendar.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
 
@@ -14,6 +17,38 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
   DateTime? selectedDate;
   List<Map<String, dynamic>> allAppointments = [];
   bool isLoading = true;
+  int _selectedIndex = 1;
+
+  void _onTabTapped(int index) {
+    if (index == _selectedIndex) return;
+
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const MapScreen(),
+        ), // Replace with your actual map page
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HomeDash(),
+        ), // Replace with your home page
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const ProfilePage(),
+        ), // Optional: replace or stub
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -218,13 +253,17 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
                 ],
               ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
+        currentIndex: _selectedIndex,
+        onTap: _onTabTapped,
         selectedItemColor: const Color(0xFF356899),
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.map), label: "Map"),
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: "Settings",
+          ),
         ],
       ),
     );
