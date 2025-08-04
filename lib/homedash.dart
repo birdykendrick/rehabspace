@@ -16,11 +16,16 @@ class HomeDash extends StatefulWidget {
 class _HomeDashState extends State<HomeDash> {
   String? displayName;
   bool isLoading = true;
+  Map<String, dynamic>? nextAppointment;
+  String? doctorPhotoUrl;
+  List<Map<String, dynamic>> _reminders = [];
 
   @override
   void initState() {
     super.initState();
     _loadDisplayName();
+    _loadNextAppointment();
+    _loadReminders();
   }
 
   Future<void> _loadDisplayName() async {
@@ -31,7 +36,6 @@ class _HomeDashState extends State<HomeDash> {
               .collection('loginData')
               .doc(uid)
               .get();
-
       if (doc.exists) {
         setState(() {
           displayName = doc['displayName'] ?? 'User';
@@ -41,7 +45,113 @@ class _HomeDashState extends State<HomeDash> {
     }
   }
 
-  int _selectedIndex = 1; // Default to Home
+  Future<void> _loadNextAppointment() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('PhysioBookings')
+            .where('userId', isEqualTo: user.uid)
+            .get();
+
+    final upcoming =
+        snapshot.docs.map((doc) => doc.data()).where((data) {
+          final dateStr = data['date_selected'] as String?;
+          if (dateStr == null) return false;
+          final date = DateTime.tryParse(dateStr);
+          return date != null && date.isAfter(now);
+        }).toList();
+
+    upcoming.sort((a, b) {
+      final dateA = DateTime.parse(a['date_selected']);
+      final dateB = DateTime.parse(b['date_selected']);
+      return dateA.compareTo(dateB);
+    });
+
+    if (upcoming.isNotEmpty) {
+      final data = upcoming.first;
+      setState(() {
+        nextAppointment = data;
+      });
+
+      final therapistName = data['therapist'];
+      if (therapistName != null) {
+        final doctorSnap =
+            await FirebaseFirestore.instance
+                .collection('Doctors')
+                .where('name', isEqualTo: therapistName)
+                .limit(1)
+                .get();
+
+        if (doctorSnap.docs.isNotEmpty) {
+          setState(() {
+            doctorPhotoUrl = doctorSnap.docs.first.data()['photoUrl'];
+          });
+        }
+      }
+    } else {
+      setState(() {
+        nextAppointment = null;
+      });
+    }
+  }
+
+  Future<void> _loadReminders() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('reminders')
+            .doc(uid)
+            .collection('items')
+            .get();
+
+    setState(() {
+      _reminders =
+          snapshot.docs
+              .map((doc) => {'id': doc.id, 'text': doc['text']})
+              .toList();
+    });
+  }
+
+  Future<void> _addReminder(String text) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final docRef = await FirebaseFirestore.instance
+        .collection('reminders')
+        .doc(uid)
+        .collection('items')
+        .add({'text': text});
+
+    setState(() {
+      _reminders.add({'id': docRef.id, 'text': text});
+    });
+  }
+
+  Future<void> _removeReminder(String id) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('reminders')
+        .doc(uid)
+        .collection('items')
+        .doc(id)
+        .delete();
+
+    setState(() {
+      _reminders.removeWhere((r) => r['id'] == id);
+    });
+  }
+
+  int _selectedIndex = 1;
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
@@ -55,22 +165,14 @@ class _HomeDashState extends State<HomeDash> {
               context,
               MaterialPageRoute(builder: (context) => const MapScreen()),
             );
-
-            // After returning from MapScreen, reset to Home
-            setState(() {
-              _selectedIndex = 1;
-            });
+            setState(() => _selectedIndex = 1);
           } else if (index == 1) {
-            setState(() {
-              _selectedIndex = 1;
-            });
+            setState(() => _selectedIndex = 1);
           } else if (index == 2) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Settings page not implemented')),
             );
-            setState(() {
-              _selectedIndex = 2;
-            });
+            setState(() => _selectedIndex = 2);
           }
         },
         items: const [
@@ -84,196 +186,213 @@ class _HomeDashState extends State<HomeDash> {
       ),
       body: ListView(
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
-            decoration: const BoxDecoration(
-              color: Color(0xFF256899),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Welcome Back!',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                    const SizedBox(height: 4),
-                    isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : Text(
-                          '$displayName 👋',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                  ],
-                ),
-                const CircleAvatar(
-                  radius: 24,
-                  backgroundImage: AssetImage("assets/Profile_photo.jpg"),
-                ),
-              ],
-            ),
-          ),
-
+          _buildHeader(),
           const SizedBox(height: 24),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "How can we help you today?",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0D0D26),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: 3.2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  children: [
-                    _buildActionCard(context, Icons.event_note, "Book Physio"),
-                    _buildActionCard(
-                      context,
-                      Icons.chat_bubble_outline,
-                      "AI Chatbot",
-                    ),
-                    _buildActionCard(
-                      context,
-                      Icons.calendar_month,
-                      "Appointments",
-                    ),
-                    _buildActionCard(context, Icons.bar_chart, "My Progress"),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
+          _buildActionsSection(context),
           const SizedBox(height: 32),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Your Upcoming Appointment",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0D0D26),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF356899),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(
-                        backgroundImage: AssetImage(
-                          "assets/Doctor_picture.jpg",
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              "Dr. Kendrick Khoo",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              "Specialises in Orthopedic",
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  "Thu, 31 July 2025",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                SizedBox(width: 12),
-                                Icon(
-                                  Icons.access_time,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  "10:00am",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
+          _buildUpcomingAppointmentSection(),
           const SizedBox(height: 24),
+          _buildRemindersSection(),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Reminders",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0D0D26),
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+      decoration: const BoxDecoration(
+        color: Color(0xFF256899),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Welcome Back!',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 4),
+              isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : Text(
+                    '$displayName 👋',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
+            ],
+          ),
+          const CircleAvatar(
+            radius: 24,
+            backgroundImage: AssetImage("assets/logo.png"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionsSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "How can we help you today?",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0D0D26),
+            ),
+          ),
+          const SizedBox(height: 16),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 3.2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            children: [
+              _buildActionCard(context, Icons.event_note, "Book Physio"),
+              _buildActionCard(
+                context,
+                Icons.chat_bubble_outline,
+                "AI Chatbot",
+              ),
+              _buildActionCard(context, Icons.calendar_month, "Appointments"),
+              _buildActionCard(context, Icons.bar_chart, "My Progress"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpcomingAppointmentSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Your Upcoming Appointment",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0D0D26),
+            ),
+          ),
+          const SizedBox(height: 12),
+          nextAppointment == null
+              ? const Text("No upcoming appointments.")
+              : Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF356899),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 8),
-                _buildReminder("Take your prescribed medication."),
-                _buildReminder("Physio session at 5:00pm"),
-                _buildReminder("Stay hydrated throughout the day."),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundImage:
+                          doctorPhotoUrl != null
+                              ? NetworkImage(doctorPhotoUrl!)
+                              : const AssetImage("assets/Doctor_picture.jpg")
+                                  as ImageProvider,
+                      radius: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            nextAppointment!['therapist'] ?? "Your Physio",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_today,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _formatDate(nextAppointment!['date_selected']),
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              const SizedBox(width: 12),
+                              const Icon(
+                                Icons.access_time,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                nextAppointment!['time_selected'] ?? "N/A",
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRemindersSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Reminders",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0D0D26),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._reminders.map(
+            (r) => Row(
+              children: [
+                Checkbox(
+                  value: false,
+                  onChanged: (_) => _removeReminder(r['id']),
+                ),
+                Expanded(child: Text(r['text'])),
               ],
             ),
           ),
-
-          const SizedBox(height: 40),
+          const SizedBox(height: 6),
+          TextButton.icon(
+            onPressed: _showAddReminderDialog,
+            icon: const Icon(Icons.add),
+            label: const Text("Add Reminder"),
+          ),
         ],
       ),
     );
@@ -281,12 +400,13 @@ class _HomeDashState extends State<HomeDash> {
 
   Widget _buildActionCard(BuildContext context, IconData icon, String label) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (label == "Book Physio") {
-          Navigator.push(
+          final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => BookPhysioPage()),
+            MaterialPageRoute(builder: (context) => const BookPhysioPage()),
           );
+          if (result == true) _loadNextAppointment();
         } else if (label == "AI Chatbot") {
           Navigator.push(
             context,
@@ -296,7 +416,7 @@ class _HomeDashState extends State<HomeDash> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const AppointmentCalendar(), // ✅ Fixed
+              builder: (context) => const AppointmentCalendar(),
             ),
           );
         } else {
@@ -332,9 +452,42 @@ class _HomeDashState extends State<HomeDash> {
     );
   }
 
-  Widget _buildReminder(String text) {
-    return Row(
-      children: [Checkbox(value: false, onChanged: (_) {}), Text(text)],
+  String _formatDate(String isoString) {
+    final date = DateTime.tryParse(isoString);
+    if (date == null) return "Unknown";
+    return "${date.day}/${date.month}/${date.year}";
+  }
+
+  void _showAddReminderDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text("New Reminder"),
+            content: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: "Enter your reminder",
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () {
+                  final text = controller.text.trim();
+                  if (text.isNotEmpty) {
+                    _addReminder(text);
+                  }
+                  Navigator.pop(ctx);
+                },
+                child: const Text("Add"),
+              ),
+            ],
+          ),
     );
   }
 }

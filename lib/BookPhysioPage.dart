@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ✅ added
 import 'package:rehabspace/homedash.dart';
 import 'package:rehabspace/map.dart';
 import 'package:rehabspace/profile_page.dart';
@@ -35,11 +36,9 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
   List<String> _locations = [];
   String? _selectedLocation;
 
-  // 🔹 Fetch locations from Firestore
   Future<void> _fetchLocations() async {
     final snapshot =
         await FirebaseFirestore.instance.collection('maplocations').get();
-
     setState(() {
       _locations =
           snapshot.docs
@@ -54,30 +53,22 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
   void _onTabTapped(int index) {
     if (index == _selectedIndex) return;
 
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
 
     if (index == 0) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const MapScreen(),
-        ), // Replace with your actual map page
+        MaterialPageRoute(builder: (context) => const MapScreen()),
       );
     } else if (index == 1) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const HomeDash(),
-        ), // Replace with your home page
+        MaterialPageRoute(builder: (context) => const HomeDash()),
       );
     } else if (index == 2) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const ProfilePage(),
-        ), // Optional: replace or stub
+        MaterialPageRoute(builder: (context) => const ProfilePage()),
       );
     }
   }
@@ -85,7 +76,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
   @override
   void initState() {
     super.initState();
-    _fetchLocations(); // 🔹 Load locations when the page opens
+    _fetchLocations();
   }
 
   void _submitBooking() async {
@@ -99,11 +90,20 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
       return;
     }
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("User not logged in")));
+      return;
+    }
+
     await FirebaseFirestore.instance.collection('PhysioBookings').add({
+      'userId': user.uid, // ✅ store user ID
       'therapist': _selectedTherapist,
       'date_selected': _selectedDate!.toIso8601String(),
       'time_selected': _selectedTime,
-      'location': _selectedLocation, // 🔹 Save location to Firestore
+      'location': _selectedLocation,
       'remarks': _remarksController.text.trim(),
       'createdAt': Timestamp.now(),
     });
@@ -112,7 +112,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
       context,
     ).showSnackBar(const SnackBar(content: Text("Appointment Booked!")));
 
-    Navigator.pop(context);
+    Navigator.pop(context, true);
   }
 
   @override
@@ -135,7 +135,6 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
             ),
             const SizedBox(height: 24),
 
-            // 🔹 Location dropdown
             DropdownButtonFormField<String>(
               isExpanded: true,
               value: _selectedLocation,
@@ -222,10 +221,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
                       selectedColor: const Color.fromARGB(255, 67, 155, 238),
                       backgroundColor: Colors.grey[200],
                       labelStyle: TextStyle(
-                        color:
-                            isSelected
-                                ? Colors.white
-                                : const Color.fromARGB(255, 0, 0, 0),
+                        color: isSelected ? Colors.white : Colors.black,
                       ),
                     );
                   }).toList(),
@@ -258,7 +254,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1, // Use 1 if Home is tab index 1
+        currentIndex: 1,
         onTap: _onTabTapped,
         selectedItemColor: const Color(0xFF356899),
         unselectedItemColor: Colors.grey,

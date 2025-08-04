@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rehabspace/homedash.dart';
 import 'package:rehabspace/map.dart';
 import 'package:rehabspace/profile_page.dart';
 import 'package:table_calendar/table_calendar.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
 
 class AppointmentCalendar extends StatefulWidget {
   const AppointmentCalendar({super.key});
@@ -22,30 +22,22 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
   void _onTabTapped(int index) {
     if (index == _selectedIndex) return;
 
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
 
     if (index == 0) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const MapScreen(),
-        ), // Replace with your actual map page
+        MaterialPageRoute(builder: (context) => const MapScreen()),
       );
     } else if (index == 1) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const HomeDash(),
-        ), // Replace with your home page
+        MaterialPageRoute(builder: (context) => const HomeDash()),
       );
     } else if (index == 2) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const ProfilePage(),
-        ), // Optional: replace or stub
+        MaterialPageRoute(builder: (context) => const ProfilePage()),
       );
     }
   }
@@ -58,21 +50,22 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
   }
 
   Future<void> fetchAppointmentsFromFirestore() async {
-    // final uid = FirebaseAuth.instance.currentUser?.uid;
-    // if (uid == null) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
     try {
       final snapshot =
-          await FirebaseFirestore.instance.collection('PhysioBookings').get();
-      //   final snapshot = await FirebaseFirestore.instance
-      // .collection('PhysioBookings')
-      // .where('userId', isEqualTo: uid) // 🔑 Only fetch current user's bookings
-      // .get();
+          await FirebaseFirestore.instance
+              .collection('PhysioBookings')
+              .where('userId', isEqualTo: uid)
+              .get();
 
       setState(() {
         allAppointments =
             snapshot.docs.map((doc) {
               final data = doc.data();
               return {
+                'id': doc.id, // 👈 doc ID needed for deletion
                 'date': DateTime.parse(data['date_selected']),
                 'therapist': data['therapist'],
                 'time': data['time_selected'],
@@ -140,7 +133,6 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
                         selectedDate = selected;
                       });
                     },
-
                     availableCalendarFormats: const {
                       CalendarFormat.month: 'Month',
                     },
@@ -215,34 +207,88 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
                                       ),
                                     ],
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        appointment['therapist'] ??
-                                            'Unknown Therapist',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              appointment['therapist'] ??
+                                                  'Unknown Therapist',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              appointment['time'] ?? 'No time',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              appointment['location'] ??
+                                                  'No location',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        appointment['time'] ?? 'No time',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey,
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
                                         ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        appointment['location'] ??
-                                            'No location',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey,
-                                        ),
+                                        onPressed: () async {
+                                          final confirm = await showDialog(
+                                            context: context,
+                                            builder:
+                                                (ctx) => AlertDialog(
+                                                  title: const Text(
+                                                    "Cancel Appointment",
+                                                  ),
+                                                  content: const Text(
+                                                    "Are you sure you want to delete this appointment?",
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed:
+                                                          () => Navigator.pop(
+                                                            ctx,
+                                                            false,
+                                                          ),
+                                                      child: const Text("No"),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed:
+                                                          () => Navigator.pop(
+                                                            ctx,
+                                                            true,
+                                                          ),
+                                                      child: const Text("Yes"),
+                                                    ),
+                                                  ],
+                                                ),
+                                          );
+
+                                          if (confirm == true) {
+                                            await FirebaseFirestore.instance
+                                                .collection('PhysioBookings')
+                                                .doc(appointment['id'])
+                                                .delete();
+                                            fetchAppointmentsFromFirestore();
+                                          }
+                                        },
                                       ),
                                     ],
                                   ),
