@@ -16,8 +16,9 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  bool _isPasswordVisible = false;
-  bool _isLoading = false;
+
+  bool _isPasswordVisible = false; // toggle password visibility
+  bool _isLoading = false; // shows loader on login button
 
   @override
   void dispose() {
@@ -26,12 +27,14 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  // handles the login logic
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
+      // try logging in with Firebase Auth
       UserCredential credential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(
             email: _emailController.text.trim(),
@@ -44,6 +47,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (user != null) {
         if (user.emailVerified) {
+          // update Firestore to reflect that email is verified
           await FirebaseFirestore.instance
               .collection('loginData')
               .doc(user.uid)
@@ -57,11 +61,10 @@ class _LoginPageState extends State<LoginPage> {
 
           final data = userDoc.data();
           final hasDisplayName =
-              data != null &&
-              data['displayName'] != null &&
-              data['displayName'].toString().trim().isNotEmpty;
+              data != null && data['displayName']?.trim().isNotEmpty == true;
           final hasDob = data != null && data['dob'] != null;
 
+          // if missing profile info, show dialog
           if (!hasDisplayName || !hasDob) {
             showDialog(
               context: context,
@@ -69,9 +72,10 @@ class _LoginPageState extends State<LoginPage> {
               builder: (_) => ProfileCompletionDialog(uid: user!.uid),
             );
           } else {
+            // go to dashboard
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomeDash()),
+              MaterialPageRoute(builder: (_) => const HomeDash()),
             );
           }
         } else {
@@ -96,13 +100,15 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // go to sign-up screen
   void _navigateToSignUp() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const SignUpPage()),
+      MaterialPageRoute(builder: (_) => const SignUpPage()),
     );
   }
 
+  // sends password reset link to email
   void _handleForgotPassword() async {
     final email = _emailController.text.trim();
 
@@ -172,14 +178,15 @@ class _LoginPageState extends State<LoginPage> {
                           style: TextStyle(fontSize: 15, color: Colors.white70),
                         ),
                         const SizedBox(height: 24),
+
+                        // email input
                         _buildInputField(
                           controller: _emailController,
                           hintText: 'Email',
                           icon: Icons.email_outlined,
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
+                            if (value == null || value.isEmpty)
                               return 'Enter email';
-                            }
                             if (!RegExp(
                               r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                             ).hasMatch(value)) {
@@ -188,29 +195,31 @@ class _LoginPageState extends State<LoginPage> {
                             return null;
                           },
                         ),
+
                         const SizedBox(height: 16),
+
+                        // password input
                         _buildInputField(
                           controller: _passwordController,
                           hintText: 'Password',
                           icon: Icons.lock_outline,
                           isPassword: true,
                           isVisible: _isPasswordVisible,
-                          toggleVisibility: () {
-                            setState(
-                              () => _isPasswordVisible = !_isPasswordVisible,
-                            );
-                          },
+                          toggleVisibility:
+                              () => setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              }),
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
+                            if (value == null || value.isEmpty)
                               return 'Enter password';
-                            }
-                            if (value.length < 6) {
-                              return 'Min 6 characters';
-                            }
+                            if (value.length < 6) return 'Min 6 characters';
                             return null;
                           },
                         ),
+
                         const SizedBox(height: 8),
+
+                        // forgot password
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
@@ -225,7 +234,10 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                         ),
+
                         const SizedBox(height: 16),
+
+                        // login button
                         SizedBox(
                           width: double.infinity,
                           height: 52,
@@ -251,7 +263,10 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                           ),
                         ),
+
                         const SizedBox(height: 16),
+
+                        // sign up redirect
                         Center(
                           child: TextButton(
                             onPressed: _navigateToSignUp,
@@ -276,6 +291,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // reusable input field widget for both email and password
   Widget _buildInputField({
     required TextEditingController controller,
     required String hintText,

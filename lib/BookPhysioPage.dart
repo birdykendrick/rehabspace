@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ✅ added
-import 'package:rehabspace/homedash.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:rehabspace/map.dart';
-import 'package:rehabspace/profile_page.dart';
+import 'package:rehabspace/homedash.dart';
+import 'package:rehabspace/settings.dart';
 
 class BookPhysioPage extends StatefulWidget {
   const BookPhysioPage({super.key});
@@ -14,9 +15,13 @@ class BookPhysioPage extends StatefulWidget {
 
 class _BookPhysioPageState extends State<BookPhysioPage> {
   final TextEditingController _remarksController = TextEditingController();
+
   DateTime? _selectedDate;
   String? _selectedTime;
   String? _selectedTherapist;
+  String? _selectedLocation;
+
+  int _selectedIndex = 1;
 
   final List<String> timeSlots = [
     '10am - 11am',
@@ -34,11 +39,12 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
   ];
 
   List<String> _locations = [];
-  String? _selectedLocation;
 
+  // pulls all clinic names from Firestore to show in the location dropdown
   Future<void> _fetchLocations() async {
     final snapshot =
         await FirebaseFirestore.instance.collection('maplocations').get();
+
     setState(() {
       _locations =
           snapshot.docs
@@ -48,37 +54,13 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
     });
   }
 
-  int _selectedIndex = 1;
-
-  void _onTabTapped(int index) {
-    if (index == _selectedIndex) return;
-
-    setState(() => _selectedIndex = index);
-
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MapScreen()),
-      );
-    } else if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeDash()),
-      );
-    } else if (index == 2) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const ProfilePage()),
-      );
-    }
-  }
-
   @override
   void initState() {
     super.initState();
-    _fetchLocations();
+    _fetchLocations(); // run this when the screen loads
   }
 
+  // when user hits "submit", this function checks if everything’s filled and then books the appointment
   void _submitBooking() async {
     if (_selectedTherapist == null ||
         _selectedTime == null ||
@@ -91,15 +73,10 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
     }
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("User not logged in")));
-      return;
-    }
+    if (user == null) return;
 
     await FirebaseFirestore.instance.collection('PhysioBookings').add({
-      'userId': user.uid, // ✅ store user ID
+      'userId': user.uid,
       'therapist': _selectedTherapist,
       'date_selected': _selectedDate!.toIso8601String(),
       'time_selected': _selectedTime,
@@ -112,7 +89,33 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
       context,
     ).showSnackBar(const SnackBar(content: Text("Appointment Booked!")));
 
-    Navigator.pop(context, true);
+    Navigator.pop(context, true); // go back to previous screen
+  }
+
+  // handles bottom nav taps: lets user jump between map/home/settings
+  void _onTabTapped(int index) {
+    if (index == _selectedIndex) return;
+
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MapScreen()),
+        );
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeDash()),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const SettingsPage()),
+        );
+        break;
+    }
   }
 
   @override
@@ -135,6 +138,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
             ),
             const SizedBox(height: 24),
 
+            // dropdown to pick location
             DropdownButtonFormField<String>(
               isExpanded: true,
               value: _selectedLocation,
@@ -159,6 +163,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
             ),
             const SizedBox(height: 20),
 
+            // dropdown to pick therapist
             DropdownButtonFormField<String>(
               value: _selectedTherapist,
               hint: const Text("Select Your Therapist"),
@@ -178,6 +183,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
             ),
             const SizedBox(height: 20),
 
+            // date picker field
             TextFormField(
               readOnly: true,
               decoration: InputDecoration(
@@ -204,6 +210,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
             ),
             const SizedBox(height: 20),
 
+            // choose timeslot using chips
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -221,13 +228,17 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
                       selectedColor: const Color.fromARGB(255, 67, 155, 238),
                       backgroundColor: Colors.grey[200],
                       labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black,
+                        color:
+                            isSelected
+                                ? Colors.white
+                                : const Color.fromARGB(255, 0, 0, 0),
                       ),
                     );
                   }).toList(),
             ),
             const SizedBox(height: 20),
 
+            // remarks text field
             TextFormField(
               controller: _remarksController,
               maxLines: 3,
@@ -239,6 +250,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
             ),
             const SizedBox(height: 30),
 
+            // submit button
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -254,7 +266,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
+        currentIndex: _selectedIndex,
         onTap: _onTabTapped,
         selectedItemColor: const Color(0xFF356899),
         unselectedItemColor: Colors.grey,

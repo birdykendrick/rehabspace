@@ -15,6 +15,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
@@ -27,14 +28,14 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
+  // handles user signup logic
   Future<void> _handleSignUp() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      UserCredential userCredential = await FirebaseAuth //.
-          .instance //.
+      UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
@@ -43,10 +44,9 @@ class _SignUpPageState extends State<SignUpPage> {
       User? user = userCredential.user;
 
       if (user != null) {
-        await user.sendEmailVerification(); //.
+        await user.sendEmailVerification(); // send Gmail verification
 
-        await FirebaseFirestore //S
-            .instance //.
+        await FirebaseFirestore.instance
             .collection('loginData')
             .doc(user.uid)
             .set({
@@ -62,7 +62,7 @@ class _SignUpPageState extends State<SignUpPage> {
           ),
         );
 
-        Navigator.pop(context);
+        Navigator.pop(context); // back to login
       }
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(
@@ -213,6 +213,7 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
+  // reusable text input widget (email, password, etc.)
   Widget _buildInputField({
     required TextEditingController controller,
     required String hintText,

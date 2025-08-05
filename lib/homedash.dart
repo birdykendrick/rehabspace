@@ -5,6 +5,8 @@ import 'package:rehabspace/BookPhysioPage.dart';
 import 'package:rehabspace/appointment.dart';
 import 'package:rehabspace/chat_page.dart';
 import 'package:rehabspace/map.dart';
+import 'package:rehabspace/progress.dart';
+import 'package:rehabspace/settings.dart';
 
 class HomeDash extends StatefulWidget {
   const HomeDash({super.key});
@@ -20,14 +22,44 @@ class _HomeDashState extends State<HomeDash> {
   String? doctorPhotoUrl;
   List<Map<String, dynamic>> _reminders = [];
 
+  int _selectedIndex = 1;
+
   @override
   void initState() {
     super.initState();
-    _loadDisplayName();
-    _loadNextAppointment();
-    _loadReminders();
+    _loadDisplayName(); // get user name
+    _loadNextAppointment(); // get the next upcoming appointment
+    _loadReminders(); // fetch reminder list
   }
 
+  void _onTabTapped(int index) {
+    if (index == _selectedIndex) return;
+
+    setState(() => _selectedIndex = index);
+
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MapScreen()),
+        );
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeDash()),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const SettingsPage()),
+        );
+        break;
+    }
+  }
+
+  // grab the user display name from Firestore
   Future<void> _loadDisplayName() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
@@ -45,6 +77,7 @@ class _HomeDashState extends State<HomeDash> {
     }
   }
 
+  // get all future appointments for this user and show the soonest one
   Future<void> _loadNextAppointment() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -65,17 +98,15 @@ class _HomeDashState extends State<HomeDash> {
           return date != null && date.isAfter(now);
         }).toList();
 
-    upcoming.sort((a, b) {
-      final dateA = DateTime.parse(a['date_selected']);
-      final dateB = DateTime.parse(b['date_selected']);
-      return dateA.compareTo(dateB);
-    });
+    upcoming.sort(
+      (a, b) => DateTime.parse(
+        a['date_selected'],
+      ).compareTo(DateTime.parse(b['date_selected'])),
+    );
 
     if (upcoming.isNotEmpty) {
       final data = upcoming.first;
-      setState(() {
-        nextAppointment = data;
-      });
+      setState(() => nextAppointment = data);
 
       final therapistName = data['therapist'];
       if (therapistName != null) {
@@ -87,18 +118,17 @@ class _HomeDashState extends State<HomeDash> {
                 .get();
 
         if (doctorSnap.docs.isNotEmpty) {
-          setState(() {
-            doctorPhotoUrl = doctorSnap.docs.first.data()['photoUrl'];
-          });
+          setState(
+            () => doctorPhotoUrl = doctorSnap.docs.first.data()['photoUrl'],
+          );
         }
       }
     } else {
-      setState(() {
-        nextAppointment = null;
-      });
+      setState(() => nextAppointment = null);
     }
   }
 
+  // load reminders from Firestore
   Future<void> _loadReminders() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -118,6 +148,7 @@ class _HomeDashState extends State<HomeDash> {
     });
   }
 
+  // add reminder to Firestore
   Future<void> _addReminder(String text) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -133,6 +164,7 @@ class _HomeDashState extends State<HomeDash> {
     });
   }
 
+  // remove reminder from Firestore
   Future<void> _removeReminder(String id) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -149,41 +181,10 @@ class _HomeDashState extends State<HomeDash> {
     });
   }
 
-  int _selectedIndex = 1;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        selectedItemColor: const Color.fromARGB(255, 9, 95, 255),
-        unselectedItemColor: Colors.grey,
-        onTap: (index) async {
-          if (index == 0) {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const MapScreen()),
-            );
-            setState(() => _selectedIndex = 1);
-          } else if (index == 1) {
-            setState(() => _selectedIndex = 1);
-          } else if (index == 2) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Settings page not implemented')),
-            );
-            setState(() => _selectedIndex = 2);
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: "Map"),
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: "Settings",
-          ),
-        ],
-      ),
       body: ListView(
         children: [
           _buildHeader(),
@@ -196,9 +197,24 @@ class _HomeDashState extends State<HomeDash> {
           const SizedBox(height: 40),
         ],
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onTabTapped,
+        selectedItemColor: const Color.fromARGB(255, 9, 95, 255),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: "Map"),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: "Settings",
+          ),
+        ],
+      ),
     );
   }
 
+  // greeting section with display name and app logo
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
@@ -241,6 +257,7 @@ class _HomeDashState extends State<HomeDash> {
     );
   }
 
+  // shows 4 main options: Book, Chat, Appointments, Progress
   Widget _buildActionsSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -279,6 +296,7 @@ class _HomeDashState extends State<HomeDash> {
     );
   }
 
+  // show info about the user's next appointment
   Widget _buildUpcomingAppointmentSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -361,6 +379,7 @@ class _HomeDashState extends State<HomeDash> {
     );
   }
 
+  // show reminders list + add option
   Widget _buildRemindersSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -398,30 +417,30 @@ class _HomeDashState extends State<HomeDash> {
     );
   }
 
+  // reusable action card builder
   Widget _buildActionCard(BuildContext context, IconData icon, String label) {
     return GestureDetector(
       onTap: () async {
         if (label == "Book Physio") {
           final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const BookPhysioPage()),
+            MaterialPageRoute(builder: (_) => const BookPhysioPage()),
           );
           if (result == true) _loadNextAppointment();
         } else if (label == "AI Chatbot") {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const ChatPage()),
+            MaterialPageRoute(builder: (_) => const ChatPage()),
           );
         } else if (label == "Appointments") {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const AppointmentCalendar(),
-            ),
+            MaterialPageRoute(builder: (_) => const AppointmentCalendar()),
           );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$label is not yet implemented')),
+        } else if (label == "My Progress") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const WeeklyProgress()),
           );
         }
       },
@@ -452,12 +471,14 @@ class _HomeDashState extends State<HomeDash> {
     );
   }
 
+  // formats ISO date string into dd/mm/yyyy
   String _formatDate(String isoString) {
     final date = DateTime.tryParse(isoString);
     if (date == null) return "Unknown";
     return "${date.day}/${date.month}/${date.year}";
   }
 
+  // popup to add a new reminder
   void _showAddReminderDialog() {
     final controller = TextEditingController();
     showDialog(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rehabspace/homedash.dart';
 import 'package:rehabspace/map.dart';
-import 'package:rehabspace/profile_page.dart';
+import 'package:rehabspace/settings.dart';
 import 'claude.dart';
 
 class ChatPage extends StatefulWidget {
@@ -12,12 +12,14 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  final TextEditingController _controller = TextEditingController();
-  final List<Map<String, String>> _messages = [];
-  bool _isLoading = false;
-  final ClaudeService _claudeService = ClaudeService();
-  int _selectedIndex = 1;
+  final TextEditingController _controller =
+      TextEditingController(); // user input field
+  final List<Map<String, String>> _messages = []; // stores the chat history
+  bool _isLoading = false; // shows loading bar when AI is thinking
+  final ClaudeService _claudeService = ClaudeService(); // connects to the AI
+  int _selectedIndex = 1; // default selected tab in navbar
 
+  // when user sends a message, this handles the logic
   Future<void> _sendMessage() async {
     final input = _controller.text.trim();
     if (input.isEmpty) return;
@@ -28,7 +30,7 @@ class _ChatPageState extends State<ChatPage> {
       _controller.clear();
     });
 
-    final reply = await _claudeService.getRehabResponse(input);
+    final reply = await _claudeService.getRehabResponse(input); // get AI reply
 
     setState(() {
       _messages.add({"role": "assistant", "text": reply});
@@ -36,29 +38,38 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+  // handles bottom navigation tab change
   void _onTabTapped(int index) {
     if (index == _selectedIndex) return;
+
     setState(() => _selectedIndex = index);
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MapScreen()),
-      );
-    } else if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeDash()),
-      );
-    } else if (index == 2) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const ProfilePage()),
-      );
+
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MapScreen()),
+        );
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeDash()),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const SettingsPage()),
+        );
+        break;
     }
   }
 
+  // builds each message bubble (either user or AI)
   Widget _buildMessage(Map<String, String> msg) {
     final isUser = msg['role'] == 'user';
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
       child: Row(
@@ -134,7 +145,8 @@ class _ChatPageState extends State<ChatPage> {
           if (_isLoading)
             const Padding(
               padding: EdgeInsets.all(8),
-              child: LinearProgressIndicator(),
+              child:
+                  LinearProgressIndicator(), // loading bar when bot is replying
             ),
           Padding(
             padding: const EdgeInsets.all(12),
@@ -170,8 +182,8 @@ class _ChatPageState extends State<ChatPage> {
                   borderRadius: BorderRadius.circular(24),
                   child: Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF356899),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF356899),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.send, color: Colors.white),

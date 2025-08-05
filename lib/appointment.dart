@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rehabspace/homedash.dart';
 import 'package:rehabspace/map.dart';
-import 'package:rehabspace/profile_page.dart';
+import 'package:rehabspace/settings.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class AppointmentCalendar extends StatefulWidget {
@@ -17,62 +16,33 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
   DateTime? selectedDate;
   List<Map<String, dynamic>> allAppointments = [];
   bool isLoading = true;
-  int _selectedIndex = 1;
-
-  void _onTabTapped(int index) {
-    if (index == _selectedIndex) return;
-
-    setState(() => _selectedIndex = index);
-
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MapScreen()),
-      );
-    } else if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeDash()),
-      );
-    } else if (index == 2) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const ProfilePage()),
-      );
-    }
-  }
 
   @override
   void initState() {
     super.initState();
-    fetchAppointmentsFromFirestore();
-    selectedDate = DateTime.now();
+    fetchAppointmentsFromFirestore(); // pulls all the appointments from Firestore when the page loads
+    selectedDate = DateTime.now(); // default selected date is today
   }
 
+  // this grabs all appointments from Firestore and stores them locally
   Future<void> fetchAppointmentsFromFirestore() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
     try {
       final snapshot =
-          await FirebaseFirestore.instance
-              .collection('PhysioBookings')
-              .where('userId', isEqualTo: uid)
-              .get();
+          await FirebaseFirestore.instance.collection('PhysioBookings').get();
 
       setState(() {
         allAppointments =
             snapshot.docs.map((doc) {
               final data = doc.data();
               return {
-                'id': doc.id, // 👈 doc ID needed for deletion
+                'id': doc.id,
                 'date': DateTime.parse(data['date_selected']),
                 'therapist': data['therapist'],
                 'time': data['time_selected'],
                 'location': data['location'],
               };
             }).toList();
-        isLoading = false;
+        isLoading = false; // done loading
       });
     } catch (e) {
       print('Error fetching appointments: $e');
@@ -80,6 +50,7 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
     }
   }
 
+  // filters all appointments based on the currently selected date
   List<Map<String, dynamic>> get selectedAppointments {
     if (selectedDate == null) return [];
     return allAppointments.where((a) {
@@ -88,6 +59,67 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
           date.month == selectedDate!.month &&
           date.day == selectedDate!.day;
     }).toList();
+  }
+
+  int _selectedIndex = 1;
+
+  // handles bottom navigation bar taps and routes to different screens
+  void _onTabTapped(int index) {
+    if (index == _selectedIndex) return;
+
+    setState(() => _selectedIndex = index);
+
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MapScreen()),
+        );
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeDash()),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const SettingsPage()),
+        );
+        break;
+    }
+  }
+
+  // shows a popup to confirm before deleting an appointment
+  void _confirmDelete(BuildContext context, String id) {
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text("Cancel Appointment"),
+            content: const Text(
+              "Are you sure you want to cancel this appointment?",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("No"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await FirebaseFirestore.instance
+                      .collection('PhysioBookings')
+                      .doc(id)
+                      .delete();
+                  await fetchAppointmentsFromFirestore(); // refresh the list after deletion
+                },
+                child: const Text("Yes"),
+              ),
+            ],
+          ),
+    );
   }
 
   @override
@@ -101,7 +133,9 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
       ),
       body:
           isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(
+                child: CircularProgressIndicator(),
+              ) // loading spinner
               : Column(
                 children: [
                   const SizedBox(height: 16),
@@ -207,88 +241,51 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
                                       ),
                                     ],
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              appointment['therapist'] ??
-                                                  'Unknown Therapist',
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            appointment['therapist'] ??
+                                                'Unknown Therapist',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              appointment['time'] ?? 'No time',
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.grey,
-                                              ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.delete,
+                                              color: Colors.red,
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              appointment['location'] ??
-                                                  'No location',
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                          ],
+                                            onPressed:
+                                                () => _confirmDelete(
+                                                  context,
+                                                  appointment['id'],
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        appointment['time'] ?? 'No time',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
                                         ),
                                       ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        appointment['location'] ??
+                                            'No location',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
                                         ),
-                                        onPressed: () async {
-                                          final confirm = await showDialog(
-                                            context: context,
-                                            builder:
-                                                (ctx) => AlertDialog(
-                                                  title: const Text(
-                                                    "Cancel Appointment",
-                                                  ),
-                                                  content: const Text(
-                                                    "Are you sure you want to delete this appointment?",
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed:
-                                                          () => Navigator.pop(
-                                                            ctx,
-                                                            false,
-                                                          ),
-                                                      child: const Text("No"),
-                                                    ),
-                                                    TextButton(
-                                                      onPressed:
-                                                          () => Navigator.pop(
-                                                            ctx,
-                                                            true,
-                                                          ),
-                                                      child: const Text("Yes"),
-                                                    ),
-                                                  ],
-                                                ),
-                                          );
-
-                                          if (confirm == true) {
-                                            await FirebaseFirestore.instance
-                                                .collection('PhysioBookings')
-                                                .doc(appointment['id'])
-                                                .delete();
-                                            fetchAppointmentsFromFirestore();
-                                          }
-                                        },
                                       ),
                                     ],
                                   ),

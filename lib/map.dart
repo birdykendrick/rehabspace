@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rehabspace/settings.dart';
 import 'homedash.dart';
 
 class MapScreen extends StatefulWidget {
@@ -66,8 +67,9 @@ class _MapScreenState extends State<MapScreen> {
         );
         break;
       case 2:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings page not implemented')),
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SettingsPage()),
         );
         break;
     }

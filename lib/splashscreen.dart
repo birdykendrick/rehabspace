@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'loginpage.dart';
-import 'homedash.dart';
+// import 'homedash.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
