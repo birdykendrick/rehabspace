@@ -95,7 +95,8 @@ class _HomeDashState extends State<HomeDash> {
           final dateStr = data['date_selected'] as String?;
           if (dateStr == null) return false;
           final date = DateTime.tryParse(dateStr);
-          return date != null && date.isAfter(now);
+          return date != null &&
+              !date.isBefore(DateTime(now.year, now.month, now.day));
         }).toList();
 
     upcoming.sort(
