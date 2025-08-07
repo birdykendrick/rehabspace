@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rehabspace/homedash.dart';
 import 'package:rehabspace/map.dart';
 import 'package:rehabspace/settings.dart';
@@ -20,15 +21,20 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
   @override
   void initState() {
     super.initState();
-    fetchAppointmentsFromFirestore(); // pulls all the appointments from Firestore when the page loads
+    fetchAppointmentsFromFirestore(); // pull user-specific appointments
     selectedDate = DateTime.now(); // default selected date is today
   }
 
-  // this grabs all appointments from Firestore and stores them locally
   Future<void> fetchAppointmentsFromFirestore() async {
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
       final snapshot =
-          await FirebaseFirestore.instance.collection('PhysioBookings').get();
+          await FirebaseFirestore.instance
+              .collection('PhysioBookings')
+              .where('userId', isEqualTo: uid)
+              .get();
 
       setState(() {
         allAppointments =
@@ -42,7 +48,7 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
                 'location': data['location'],
               };
             }).toList();
-        isLoading = false; // done loading
+        isLoading = false;
       });
     } catch (e) {
       print('Error fetching appointments: $e');
@@ -50,7 +56,6 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
     }
   }
 
-  // filters all appointments based on the currently selected date
   List<Map<String, dynamic>> get selectedAppointments {
     if (selectedDate == null) return [];
     return allAppointments.where((a) {
@@ -63,7 +68,6 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
 
   int _selectedIndex = 1;
 
-  // handles bottom navigation bar taps and routes to different screens
   void _onTabTapped(int index) {
     if (index == _selectedIndex) return;
 
@@ -91,7 +95,6 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
     }
   }
 
-  // shows a popup to confirm before deleting an appointment
   void _confirmDelete(BuildContext context, String id) {
     showDialog(
       context: context,
@@ -113,7 +116,7 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
                       .collection('PhysioBookings')
                       .doc(id)
                       .delete();
-                  await fetchAppointmentsFromFirestore(); // refresh the list after deletion
+                  await fetchAppointmentsFromFirestore(); // refresh the list
                 },
                 child: const Text("Yes"),
               ),
@@ -133,9 +136,7 @@ class _AppointmentCalendarState extends State<AppointmentCalendar> {
       ),
       body:
           isLoading
-              ? const Center(
-                child: CircularProgressIndicator(),
-              ) // loading spinner
+              ? const Center(child: CircularProgressIndicator())
               : Column(
                 children: [
                   const SizedBox(height: 16),
