@@ -25,7 +25,12 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  // ---------- Logic (unchanged) ----------
+  /// Handles sign-up:
+  /// - Validates form
+  /// - Creates Firebase Auth account
+  /// - Sends verification email
+  /// - Stores user data in Firestore
+  /// - Shows success/error messages
   Future<void> _handleSignUp() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
@@ -42,7 +47,7 @@ class _SignUpPageState extends State<SignUpPage> {
             .doc(user.uid)
             .set({
               'email': user.email,
-              'password': _pass.text.trim(), // kept as in your original
+              'password': _pass.text.trim(), // Not recommended in production
               'createdAt': Timestamp.now(),
             });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -61,7 +66,7 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
-  // ---------- UI helpers ----------
+  /// Creates a blurred circular background element.
   Widget _blob({
     double? top,
     double? left,
@@ -89,37 +94,7 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  InputDecoration _dec({
-    required String hint,
-    required IconData icon,
-    bool password = false,
-    bool visible = false,
-    VoidCallback? toggle,
-  }) {
-    return InputDecoration(
-      filled: true,
-      fillColor: Colors.grey.shade800.withOpacity(0.85),
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white70),
-      prefixIcon: Icon(icon, color: Colors.white70),
-      suffixIcon:
-          password
-              ? IconButton(
-                icon: Icon(
-                  visible ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.white70,
-                ),
-                onPressed: toggle,
-              )
-              : null,
-      contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-    );
-  }
-
+  /// Builds a styled text field with optional password toggle.
   Widget _input({
     required TextEditingController c,
     required String hint,
@@ -134,16 +109,35 @@ class _SignUpPageState extends State<SignUpPage> {
       obscureText: password && !visible,
       validator: validator,
       style: const TextStyle(color: Colors.white),
-      decoration: _dec(
-        hint: hint,
-        icon: icon,
-        password: password,
-        visible: visible,
-        toggle: toggle,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.grey.shade800.withOpacity(0.85),
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white70),
+        prefixIcon: Icon(icon, color: Colors.white70),
+        suffixIcon:
+            password
+                ? IconButton(
+                  icon: Icon(
+                    visible ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.white70,
+                  ),
+                  onPressed: toggle,
+                )
+                : null,
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 18,
+          horizontal: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
 
+  // Email format validation
   String? _emailValidator(String? v) {
     if (v == null || v.isEmpty) return 'Please enter your email';
     return RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v)
@@ -151,11 +145,13 @@ class _SignUpPageState extends State<SignUpPage> {
         : 'Please enter a valid email';
   }
 
+  // Password length validation
   String? _passValidator(String? v) {
     if (v == null || v.isEmpty) return 'Please enter your password';
     return v.length < 6 ? 'Password must be at least 6 characters' : null;
   }
 
+  // Confirm password matches the original password
   String? _confirmValidator(String? v) {
     if (v == null || v.isEmpty) return 'Please confirm your password';
     return v != _pass.text ? 'Passwords do not match' : null;
@@ -164,7 +160,6 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // exact same background as login
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -212,7 +207,6 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 24),

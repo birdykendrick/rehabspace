@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:rehabspace/loginpage.dart';
 import 'package:rehabspace/map.dart';
-import 'package:rehabspace/homedash.dart'; // <-- make sure these are correct
+import 'package:rehabspace/homedash.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({Key? key}) : super(key: key);
@@ -14,10 +13,11 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  int _selectedIndex = 2; // Settings tab index
+  int _selectedIndex = 2; // The tab index for "Settings"
 
+  /// Handles bottom navigation between Map, Home, and Settings
   void _onTabTapped(int index) {
-    if (index == _selectedIndex) return;
+    if (index == _selectedIndex) return; // Do nothing if already selected
 
     switch (index) {
       case 0:
@@ -38,6 +38,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  /// Retrieves the current user's profile details from Firestore.
   Future<Map<String, dynamic>?> _getProfileData() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
@@ -51,6 +52,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return doc.data() as Map<String, dynamic>?;
   }
 
+  /// Sends a password reset email to the user's registered email.
   Future<void> _changePassword(BuildContext context) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null && user.email != null) {
@@ -61,6 +63,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  /// Lets the user pick a new Date of Birth and updates it in Firestore.
   Future<void> _changeDob(BuildContext context) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -84,6 +87,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  /// Logs the user out and clears navigation history.
   Future<void> _logout(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -103,52 +107,14 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('View Profile Details'),
-            onTap: () async {
-              final profileData = await _getProfileData();
-              if (profileData != null) {
-                showDialog(
-                  context: context,
-                  builder:
-                      (_) => AlertDialog(
-                        title: const Text('Profile Details'),
-                        content: Text(
-                          'Name: ${profileData['displayName'] ?? 'N/A'}\n'
-                          'Email: ${profileData['email'] ?? 'N/A'}\n'
-                          'DOB: ${profileData['dob'] ?? 'N/A'}',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Close'),
-                          ),
-                        ],
-                      ),
-                );
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.lock),
-            title: const Text('Change Password'),
-            onTap: () => _changePassword(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.cake),
-            title: const Text('Change Date of Birth'),
-            onTap: () => _changeDob(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
-            onTap: () => _logout(context),
-          ),
-        ],
+      body: _SettingsBody(
+        getProfileData: _getProfileData,
+        changePassword: _changePassword,
+        changeDob: _changeDob,
+        logout: _logout,
       ),
+
+      // Bottom navigation for switching between pages
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onTabTapped,
@@ -162,6 +128,141 @@ class _SettingsPageState extends State<SettingsPage> {
             label: "Settings",
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SettingsBody extends StatelessWidget {
+  final Future<Map<String, dynamic>?> Function() getProfileData;
+  final Future<void> Function(BuildContext) changePassword;
+  final Future<void> Function(BuildContext) changeDob;
+  final Future<void> Function(BuildContext) logout;
+
+  const _SettingsBody({
+    required this.getProfileData,
+    required this.changePassword,
+    required this.changeDob,
+    required this.logout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: const Color(0xFFF7F9FC),
+      child: ListView(
+        children: [
+          const _SectionHeader(title: 'Account'),
+          _SettingsCard(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.person),
+                title: const Text('View Profile Details'),
+                onTap: () async {
+                  final profileData = await getProfileData();
+                  if (profileData != null) {
+                    showDialog(
+                      context: context,
+                      builder:
+                          (_) => AlertDialog(
+                            title: const Text('Profile Details'),
+                            content: Text(
+                              'Name: ${profileData['displayName'] ?? 'N/A'}\n'
+                              'Email: ${profileData['email'] ?? 'N/A'}\n'
+                              'DOB: ${profileData['dob'] ?? 'N/A'}',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Close'),
+                              ),
+                            ],
+                          ),
+                    );
+                  }
+                },
+              ),
+              const Divider(height: 0),
+              ListTile(
+                leading: const Icon(Icons.lock),
+                title: const Text('Change Password'),
+                onTap: () => changePassword(context),
+              ),
+              const Divider(height: 0),
+              ListTile(
+                leading: const Icon(Icons.cake),
+                title: const Text('Change Date of Birth'),
+                onTap: () => changeDob(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const _SectionHeader(title: 'Session'),
+          _SettingsCard(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Logout'),
+                onTap: () => logout(context),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsCard extends StatelessWidget {
+  final List<Widget> children;
+  const _SettingsCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1.5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Colors.black, width: 2.0),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children:
+            children.map((w) {
+              if (w is ListTile) {
+                return ListTile(
+                  leading: w.leading,
+                  title: w.title,
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: w.onTap,
+                  visualDensity: VisualDensity.comfortable,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                );
+              }
+              return w;
+            }).toList(),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF5A6A7A),
+          letterSpacing: .2,
+        ),
       ),
     );
   }

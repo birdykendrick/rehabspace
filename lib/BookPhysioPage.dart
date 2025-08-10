@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import 'package:rehabspace/map.dart';
 import 'package:rehabspace/homedash.dart';
 import 'package:rehabspace/settings.dart';
@@ -15,7 +14,6 @@ class BookPhysioPage extends StatefulWidget {
 
 class _BookPhysioPageState extends State<BookPhysioPage> {
   final TextEditingController _remarksController = TextEditingController();
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   DateTime? _selectedDate;
   String? _selectedTime;
@@ -23,10 +21,8 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
   String? _selectedLocation;
 
   int _selectedIndex = 1;
-  bool _submitting = false;
-  bool _loadingLocations = true;
 
-  final List<String> timeSlots = const [
+  final List<String> timeSlots = [
     '10am - 11am',
     '11am - 12pm',
     '1:30pm - 2:30pm',
@@ -35,7 +31,7 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
     '4:30pm - 6pm',
   ];
 
-  final List<String> therapists = const [
+  final List<String> therapists = [
     'Dr. Lester Law',
     'Dr. Kendrick Khoo',
     'Dr. Chris',
@@ -43,48 +39,34 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
 
   List<String> _locations = [];
 
+  // pulls all clinic names from Firestore to show in the location dropdown
   Future<void> _fetchLocations() async {
-    try {
-      final snapshot =
-          await FirebaseFirestore.instance.collection('maplocations').get();
+    final snapshot =
+        await FirebaseFirestore.instance.collection('maplocations').get();
 
+    setState(() {
       _locations =
           snapshot.docs
-              .map((doc) => (doc['name'] as String?)?.trim() ?? '')
+              .map((doc) => doc['name'] as String)
               .where((name) => name.isNotEmpty)
               .toList();
-    } catch (e) {
-      _locations = [];
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Couldn’t load locations. Pull to retry."),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _loadingLocations = false);
-      }
-    }
+    });
   }
 
   @override
   void initState() {
     super.initState();
-    _fetchLocations();
+    _fetchLocations(); // run this when the screen loads
   }
 
-  Future<void> _submitBooking() async {
-    if (!_formKey.currentState!.validate() ||
-        _selectedDate == null ||
-        _selectedTime == null) {
+  // when user hits "submit", this function checks if everything’s filled and then books the appointment
+  void _submitBooking() async {
+    if (_selectedTherapist == null ||
+        _selectedTime == null ||
+        _selectedLocation == null ||
+        _selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.white,
-          content: const Text(
-            "Please fill in all required fields",
-            style: TextStyle(color: Colors.black),
-          ),
-        ),
+        const SnackBar(content: Text("Please fill in all required fields")),
       );
       return;
     }
@@ -92,45 +74,24 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    setState(() => _submitting = true);
-    try {
-      await FirebaseFirestore.instance.collection('PhysioBookings').add({
-        'userId': user.uid,
-        'therapist': _selectedTherapist,
-        'date_selected': _selectedDate!.toIso8601String(),
-        'time_selected': _selectedTime,
-        'location': _selectedLocation,
-        'remarks': _remarksController.text.trim(),
-        'createdAt': Timestamp.now(),
-      });
+    await FirebaseFirestore.instance.collection('PhysioBookings').add({
+      'userId': user.uid,
+      'therapist': _selectedTherapist,
+      'date_selected': _selectedDate!.toIso8601String(),
+      'time_selected': _selectedTime,
+      'location': _selectedLocation,
+      'remarks': _remarksController.text.trim(),
+      'createdAt': Timestamp.now(),
+    });
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.white,
-          content: const Text(
-            "Appointment Booked!",
-            style: TextStyle(color: Colors.black),
-          ),
-        ),
-      );
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.white,
-          content: const Text(
-            "Something went wrong. Please try again.",
-            style: TextStyle(color: Colors.black),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Appointment Booked!")));
+
+    Navigator.pop(context, true); // go back to previous screen
   }
 
+  // handles bottom nav taps: lets user jump between map/home/settings
   void _onTabTapped(int index) {
     if (index == _selectedIndex) return;
 
@@ -156,302 +117,190 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
     }
   }
 
-  String _formatDate(DateTime d) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${d.day} ${months[d.month - 1]}, ${d.year}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final primary = const Color(0xFF356899);
-
     return Scaffold(
       appBar: AppBar(
+        title: const Text("Book Physio"),
         backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text(
-          "Book Physio",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1),
         ),
+        surfaceTintColor: Colors.white,
       ),
-      body: RefreshIndicator(
-        onRefresh: _fetchLocations,
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFE3F2FD), // soft blue
-                Color(0xFFFFFFFF), // white
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: ListView(
+          children: [
+            const SizedBox(height: 12),
+            const Text(
+              "Fill up this form to book an appointment",
+              style: TextStyle(color: Colors.black, fontSize: 16),
+            ),
+            const SizedBox(height: 24),
+
+            // LOCATION
+            _FormSectionCard(
+              title: 'Clinic',
+              children: [
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  value: _selectedLocation,
+                  decoration: _boldInputDecoration(
+                    labelText: 'Select Clinic Location',
+                  ),
+                  items:
+                      _locations.map((location) {
+                        return DropdownMenuItem(
+                          value: location,
+                          child: Text(location),
+                        );
+                      }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedLocation = value;
+                    });
+                  },
+                  validator:
+                      (value) =>
+                          value == null ? 'Please select a location' : null,
+                ),
               ],
             ),
-          ),
-          child: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+
+            const SizedBox(height: 16),
+
+            // THERAPIST + DATE
+            _FormSectionCard(
+              title: 'Appointment',
               children: [
-                _GlassCard(
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(
-                          Icons.healing_outlined,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          "Fill this form to book an appointment",
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+                DropdownButtonFormField<String>(
+                  value: _selectedTherapist,
+                  hint: const Text("Select Your Therapist"),
+                  items:
+                      therapists.map((name) {
+                        return DropdownMenuItem(value: name, child: Text(name));
+                      }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedTherapist = value;
+                    });
+                  },
+                  decoration: _boldInputDecoration(
+                    prefixIcon: const Icon(Icons.person_outline),
+                    labelText: 'Therapist',
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 5),
+                TextFormField(
+                  readOnly: true,
+                  decoration: _boldInputDecoration(
+                    prefixIcon: const Icon(Icons.calendar_today_outlined),
+                    hintText:
+                        _selectedDate == null
+                            ? 'Select Date'
+                            : '${_selectedDate!.day} ${_selectedDate!.month}, ${_selectedDate!.year}',
+                    labelText: 'Date',
+                  ),
+                  onTap: () async {
+                    DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2030),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _selectedDate = picked;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
 
-                _GlassCard(
-                  padding: const EdgeInsets.all(16),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        _SectionHeader(
-                          icon: Icons.location_on_outlined,
-                          title: "Clinic & Therapist",
-                        ),
+            const SizedBox(height: 16),
 
-                        DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          value: _selectedLocation,
-                          decoration: const InputDecoration(
-                            labelText: 'Select Clinic Location',
-                            border: OutlineInputBorder(),
-                          ),
-                          items:
-                              (_loadingLocations && _locations.isEmpty)
-                                  ? [
-                                    const DropdownMenuItem(
-                                      value: null,
-                                      child: Text('Loading locations...'),
-                                    ),
-                                  ]
-                                  : _locations.map((location) {
-                                    return DropdownMenuItem(
-                                      value: location,
-                                      child: Text(location),
-                                    );
-                                  }).toList(),
-                          onChanged:
-                              _loadingLocations
-                                  ? null
-                                  : (value) {
-                                    setState(() {
-                                      _selectedLocation = value;
-                                    });
-                                  },
-                          validator:
-                              (value) =>
-                                  value == null || value.isEmpty
-                                      ? 'Please select a location'
-                                      : null,
-                        ),
-                        const SizedBox(height: 14),
-
-                        DropdownButtonFormField<String>(
-                          value: _selectedTherapist,
-                          hint: const Text("Select Your Therapist"),
-                          items:
-                              therapists
-                                  .map(
-                                    (name) => DropdownMenuItem(
-                                      value: name,
-                                      child: Text(name),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged: (value) {
+            // TIMESLOTS
+            _FormSectionCard(
+              title: 'Time Slot',
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children:
+                      timeSlots.map((slot) {
+                        final isSelected = _selectedTime == slot;
+                        return ChoiceChip(
+                          label: Text(slot),
+                          selected: isSelected,
+                          onSelected: (_) {
                             setState(() {
-                              _selectedTherapist = value;
+                              _selectedTime = slot;
                             });
                           },
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.person_outline),
-                            border: OutlineInputBorder(),
+                          selectedColor: const Color.fromARGB(
+                            255,
+                            67,
+                            155,
+                            238,
+                          ), // keep yours
+                          backgroundColor: Colors.grey[200],
+                          labelStyle: TextStyle(
+                            color:
+                                isSelected
+                                    ? Colors.white
+                                    : const Color.fromARGB(255, 0, 0, 0),
                           ),
-                          validator:
-                              (v) =>
-                                  v == null
-                                      ? 'Please select a therapist'
-                                      : null,
-                        ),
+                        );
+                      }).toList(),
+                ),
+              ],
+            ),
 
-                        const SizedBox(height: 22),
-                        _Divider(),
+            const SizedBox(height: 16),
 
-                        _SectionHeader(
-                          icon: Icons.calendar_today_outlined,
-                          title: "Date & Time",
-                        ),
-
-                        TextFormField(
-                          readOnly: true,
-                          decoration: InputDecoration(
-                            hintText:
-                                _selectedDate == null
-                                    ? 'Select Date'
-                                    : _formatDate(_selectedDate!),
-                            prefixIcon: const Icon(
-                              Icons.calendar_today_outlined,
-                            ),
-                            border: const OutlineInputBorder(),
-                          ),
-                          onTap: () async {
-                            DateTime now = DateTime.now();
-                            DateTime? picked = await showDatePicker(
-                              context: context,
-                              initialDate: now,
-                              firstDate: now,
-                              lastDate: DateTime(2030),
-                            );
-                            if (picked != null) {
-                              setState(() {
-                                _selectedDate = picked;
-                              });
-                            }
-                          },
-                          validator:
-                              (_) =>
-                                  _selectedDate == null
-                                      ? 'Please pick a date'
-                                      : null,
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Text(
-                              "Select a timeslot",
-                              style: const TextStyle(color: Colors.black),
-                            ),
-                          ),
-                        ),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children:
-                              timeSlots.map((slot) {
-                                final isSelected = _selectedTime == slot;
-                                return ChoiceChip(
-                                  label: Text(
-                                    slot,
-                                    style: TextStyle(
-                                      color:
-                                          isSelected
-                                              ? Colors.white
-                                              : Colors.black,
-                                    ),
-                                  ),
-                                  selected: isSelected,
-                                  onSelected: (_) {
-                                    setState(() {
-                                      _selectedTime = slot;
-                                    });
-                                  },
-                                  selectedColor: primary,
-                                  backgroundColor: Colors.grey[200],
-                                );
-                              }).toList(),
-                        ),
-
-                        const SizedBox(height: 22),
-                        _Divider(),
-
-                        _SectionHeader(
-                          icon: Icons.edit_note_outlined,
-                          title: "Remarks (Optional)",
-                        ),
-
-                        TextFormField(
-                          controller: _remarksController,
-                          maxLines: 3,
-                          decoration: const InputDecoration(
-                            hintText: 'Add any notes for your therapist',
-                            prefixIcon: Icon(Icons.mail_outline),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            onPressed: _submitting ? null : _submitBooking,
-                            child:
-                                _submitting
-                                    ? const CircularProgressIndicator(
-                                      color: Colors.white,
-                                    )
-                                    : const Text(
-                                      "Book Appointment",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                          ),
-                        ),
-                      ],
-                    ),
+            // REMARKS
+            _FormSectionCard(
+              title: 'Remarks',
+              children: [
+                TextFormField(
+                  controller: _remarksController,
+                  maxLines: 3,
+                  decoration: _boldInputDecoration(
+                    prefixIcon: const Icon(Icons.mail_outline),
+                    hintText: 'Remarks',
+                    labelText: 'Remarks',
                   ),
                 ),
               ],
             ),
-          ),
+
+            const SizedBox(height: 24),
+
+            // SUBMIT
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[200], // keep your original
+                ),
+                onPressed: _submitBooking,
+                child: const Text("Submit"),
+              ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onTabTapped,
-        selectedItemColor: primary,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: const Color(0xFF356899),
+        unselectedItemColor: Colors.blue[100],
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.map), label: "Map"),
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
@@ -465,73 +314,89 @@ class _BookPhysioPageState extends State<BookPhysioPage> {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry? padding;
+/// Bold outline for all inputs (TextField / Dropdown)
+InputDecoration _boldInputDecoration({
+  String? labelText,
+  String? hintText,
+  Widget? prefixIcon,
+}) {
+  const borderColor = Color(0xFF356899);
+  const boldSide = BorderSide(color: borderColor, width: 2);
 
-  const _GlassCard({required this.child, this.padding});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      padding: padding ?? const EdgeInsets.all(16),
-      child: child,
-    );
-  }
+  return const InputDecoration().copyWith(
+    labelText: labelText,
+    hintText: hintText,
+    prefixIcon: prefixIcon,
+    enabledBorder: const OutlineInputBorder(
+      borderSide: boldSide,
+      borderRadius: BorderRadius.all(Radius.circular(12)),
+    ),
+    focusedBorder: const OutlineInputBorder(
+      borderSide: boldSide,
+      borderRadius: BorderRadius.all(Radius.circular(12)),
+    ),
+    errorBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: Colors.red, width: 2),
+      borderRadius: BorderRadius.all(Radius.circular(12)),
+    ),
+    focusedErrorBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: Colors.red, width: 2),
+      borderRadius: BorderRadius.all(Radius.circular(12)),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    filled: true,
+    fillColor: Colors.white,
+  );
 }
 
-class _SectionHeader extends StatelessWidget {
-  final IconData icon;
+/// Card with bold outline to group fields
+class _FormSectionCard extends StatelessWidget {
   final String title;
+  final List<Widget> children;
 
-  const _SectionHeader({required this.icon, required this.title});
+  const _FormSectionCard({required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10.0),
-      child: Row(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(12),
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(
+          color: Color(0xFF356899), // same accent as inputs
+          width: 2.0, // bold outline
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF356899),
+              ),
             ),
-            padding: const EdgeInsets.all(8),
-            child: Icon(icon, size: 18, color: Colors.black),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-            ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            ..._withDividers(children),
+          ],
+        ),
       ),
     );
   }
-}
 
-class _Divider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 1,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      color: Colors.black.withOpacity(0.06),
-    );
+  // adds spacing between child widgets
+  List<Widget> _withDividers(List<Widget> items) {
+    final result = <Widget>[];
+    for (var i = 0; i < items.length; i++) {
+      result.add(items[i]);
+      if (i != items.length - 1) {
+        result.add(const SizedBox(height: 12));
+      }
+    }
+    return result;
   }
 }
